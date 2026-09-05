@@ -1,27 +1,21 @@
 import { Injectable } from '@nestjs/common';
-import { TrpcRouter, TrpcProcedure } from 'nestjs-trpc';
+import { Router, Query, Input } from 'nestjs-trpc';
 import { z } from 'zod';
 import { UsersService } from './users.service';
 import type { User } from '@prisma/client';
 
 @Injectable()
-@TrpcRouter({ alias: 'users' })
+@Router({ alias: 'users' })
 export class UsersRouter {
   constructor(private readonly usersService: UsersService) {}
 
-  @TrpcProcedure()
+  @Query()
   async findAll(): Promise<User[]> {
     return this.usersService.findAll();
   }
 
-  @TrpcProcedure({
-    input: z.object({ id: z.string().uuid() }),
-  })
-  async findById({
-    input,
-  }: {
-    input: { id: string };
-  }): Promise<User | null> {
-    return this.usersService.findById(input.id);
+  @Query({ input: z.object({ id: z.string().uuid() }) })
+  async findById(@Input('id') id: string): Promise<User | null> {
+    return this.usersService.findById(id);
   }
 }

@@ -19,9 +19,11 @@ RUN if node -e "const a=require('./package.json'),b=require('/opt/colossus/angul
       npm install --no-audit --no-fund --loglevel=error; \
     fi
 COPY . .
-RUN npm run build
+RUN npm run build \
+ && test -f dist/frontend/index.html \
+    || (echo 'ERROR: expected bundle at dist/frontend/index.html — angular.json outputPath drifted' >&2; ls -R dist; exit 1)
 
 FROM nginx:alpine
-COPY --from=builder /app/dist/frontend/browser /usr/share/nginx/html
+COPY --from=builder /app/dist/frontend/ /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80

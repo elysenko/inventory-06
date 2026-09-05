@@ -1,7 +1,7 @@
 /** Domain model contracts shared by every StockRoom screen. These mirror the
  *  JSON the REST API under /api returns; dates are ISO-8601 strings. */
 
-export type Role = 'ADMIN' | 'MANAGER' | 'CLERK';
+export type Role = 'ADMIN' | 'MANAGER' | 'CLERK' | 'USER';
 
 export type MovementType = 'IN' | 'OUT' | 'TRANSFER';
 

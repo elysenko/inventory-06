@@ -65,7 +65,7 @@ export class AppComponent {
 
   readonly roleLabel = computed(() => {
     const role = this.auth.user()?.role;
-    return role === 'CLERK' ? 'Clerk' : role === 'ADMIN' ? 'Admin' : 'Manager';
+    return role === 'CLERK' || role === 'USER' ? 'Clerk' : role === 'ADMIN' ? 'Admin' : 'Manager';
   });
 
   constructor() {

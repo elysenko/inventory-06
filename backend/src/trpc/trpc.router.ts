@@ -1,40 +1,20 @@
-import { TrpcRouter } from 'nestjs-trpc';
-import { Injectable } from '@nestjs/common';
 import { UsersRouter } from '../users/users.router';
 
 /**
- * Root application router.
+ * Type-only surface of the composed tRPC router.
  *
- * nestjs-trpc composes child routers registered with @TrpcRouter({ alias })
- * automatically when they are provided in the NestJS DI container.
- * This file exists primarily to export the `AppRouter` type so the Angular
- * client can import it as a type-only import for end-to-end type safety.
+ * nestjs-trpc builds the runtime router by scanning providers decorated with
+ * `@Router({ alias })` — there is no root router class to declare here. The
+ * library's own `AppRouterHost` service (injectable from `nestjs-trpc`) exposes
+ * the generated instance when it is needed at runtime.
  *
- * The actual router type is inferred by nestjs-trpc at build time via the
- * autoSchemaFile mechanism.  We re-export the inferred type alias here so
- * frontend code can do:
+ * This alias exists so the Angular client can import the shape as a
+ * type-only import for end-to-end type safety:
  *
  *   import type { AppRouter } from '../../backend/src/trpc/trpc.router';
- */
-
-// Dummy reference so TypeScript includes the router shape in the emitted .d.ts
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const _routerRef = UsersRouter;
-
-/**
- * AppRouter is the type of the composed tRPC router produced by nestjs-trpc.
- * Because nestjs-trpc generates the actual router at runtime, we declare the
- * type here structurally so frontend tooling gets full autocomplete.
  *
- * If you add more @TrpcRouter-decorated classes, extend this type accordingly.
+ * Extend it whenever another `@Router`-decorated class is added.
  */
 export type AppRouter = {
-  users: InstanceType<typeof UsersRouter>;
+  users: UsersRouter;
 };
-
-@Injectable()
-@TrpcRouter()
-export class AppRouterHost {
-  // nestjs-trpc discovers child routers by scanning providers annotated with
-  // @TrpcRouter({ alias }). This class acts as the root host.
-}

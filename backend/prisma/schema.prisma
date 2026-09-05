@@ -7,6 +7,12 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Auth baseline — Colossus accounts-v1 contract. Do not rename `Role` or
+// `passwordHash`: prisma/seed/seed.js imports `Role` and writes `passwordHash`,
+// and the auth service compares against the same column.
+// ─────────────────────────────────────────────────────────────────────────────
+
 model User {
   id           String   @id @default(uuid())
   email        String   @unique
@@ -16,10 +22,14 @@ model User {
   role         Role     @default(USER)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  /// Audit trail: every movement records the actor that recorded it.
+  movements Movement[]
 }
 
 /// One value per role the stack contract declares (stacks/combos/enterprise.json auth.roles).
 /// Colossus mints one login per role; add app roles here AND to the contract, never demo users.
+/// `USER` is the stock clerk actor: it may record movements but not manage the catalog.
 enum Role {
   USER
   MANAGER
@@ -40,4 +50,104 @@ model ColossusAccount {
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   @@map("colossus_accounts")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// StockRoom domain
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Direction of a stock movement. IN adds to `toLoc`, OUT removes from `fromLoc`,
+/// TRANSFER moves between the two conserving the item total.
+enum MovementType {
+  IN
+  OUT
+  TRANSFER
+}
+
+/// A catalog SKU. `reorderAt` is the low-stock threshold compared against the
+/// sum of the item's StockLevel rows (totalQty <= reorderAt => low stock).
+model Item {
+  id          String   @id @default(cuid())
+  sku         String   @unique
+  name        String
+  description String?
+  unit        String
+  reorderAt   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  stockLevels StockLevel[]
+  movements   Movement[]
+
+  @@index([name])
+}
+
+/// A physical stockholding place (e.g. "Zone A"). `name` is unique so the
+/// movement form can address a location by its human label.
+model Location {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  zone      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  stockLevels   StockLevel[]
+  movementsFrom Movement[]   @relation("MovementFromLocation")
+  movementsTo   Movement[]   @relation("MovementToLocation")
+
+  @@index([zone])
+}
+
+/// Current on-hand balance of one item at one location. One row per
+/// (item, location) pair — the @@unique is what makes the movement service's
+/// upsert and its guarded `updateMany({ qty: { gte } })` decrement race-safe.
+model StockLevel {
+  id         String   @id @default(cuid())
+  itemId     String
+  locationId String
+  qty        Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  item     Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  location Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, locationId])
+  @@index([itemId])
+  @@index([locationId])
+}
+
+/// Immutable audit row for one balance change. Written in the same transaction
+/// as the StockLevel mutation, so neither can land alone. Restrict on every
+/// relation keeps audited items/locations/users from being deleted out from
+/// under the log.
+model Movement {
+  id        String       @id @default(cuid())
+  type      MovementType
+  itemId    String
+  fromLocId String?
+  toLocId   String?
+  qty       Int
+  note      String?
+  userId    String
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  item    Item      @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  fromLoc Location? @relation("MovementFromLocation", fields: [fromLocId], references: [id], onDelete: Restrict)
+  toLoc   Location? @relation("MovementToLocation", fields: [toLocId], references: [id], onDelete: Restrict)
+  user    User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([itemId, createdAt])
+  @@index([createdAt])
+  @@index([userId])
+  @@index([type])
+}
+
+/// Runtime override layer for service credentials surfaced by the admin
+/// settings screen. resolveConfig() reads env vars first and falls back here.
+model SystemSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
 }

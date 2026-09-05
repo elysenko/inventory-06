@@ -13,7 +13,7 @@ const TOKEN_KEY = 'token';
 /** Routes that must stay reachable without a session. */
 const PUBLIC_SEGMENTS = ['login', 'signup'];
 
-const ROLES: readonly Role[] = ['ADMIN', 'MANAGER', 'CLERK'];
+const ROLES: readonly Role[] = ['ADMIN', 'MANAGER', 'CLERK', 'USER'];
 
 /** Anything read back from browser storage is untrusted — validate the shape. */
 function isUser(value: unknown): value is User {
