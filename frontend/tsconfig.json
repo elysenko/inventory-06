@@ -21,6 +21,7 @@
     "lib": ["ES2022", "dom"]
   },
   "files": ["src/main.ts", "src/preview.d.ts"],
+  "include": ["src/**/*.ts"],
   "angularCompilerOptions": {
     "enableI18nLegacyMessageIdFormat": false,
     "strictInjectionParameters": true,

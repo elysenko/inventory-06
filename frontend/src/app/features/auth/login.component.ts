@@ -7,6 +7,7 @@ import {
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { AuthService } from '../../core/auth.service';
+import { PREVIEW_MODE } from '../../core/preview-flag';
 import { ErrorBannerComponent } from '../../shared/error-banner.component';
 
 @Component({
@@ -24,8 +25,8 @@ export class LoginComponent {
   private readonly route = inject(ActivatedRoute);
 
   /** Preview-only affordance; compiled out of the production bundle. */
-  readonly preview = COLOSSUS_PREVIEW;
-  readonly previewShortcut = COLOSSUS_PREVIEW ? 'Skip login — Demo Mode' : '';
+  readonly preview = PREVIEW_MODE;
+  readonly previewShortcut = PREVIEW_MODE ? 'Skip login — Demo Mode' : '';
 
   readonly submitting = signal(false);
   readonly error = signal<string | null>(null);

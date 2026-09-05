@@ -3,12 +3,18 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
+import { apiMessage } from '../../core/api-error';
+import { PREVIEW_MODE } from '../../core/preview-flag';
 import { ErrorBannerComponent } from '../../shared/error-banner.component';
+import {
+  previewItems,
+  previewLocations,
+  previewStockLevels,
+} from '../../shared/preview-data';
 import type { Item, Location, MovementType, StockLevel } from '../../shared/models';
-
-const ZONE_A: Location = { id: 'loc-a', name: 'Zone A', zone: 'A' };
-const ZONE_B: Location = { id: 'loc-b', name: 'Zone B', zone: 'B' };
-const ZONE_C: Location = { id: 'loc-c', name: 'Zone C', zone: 'C' };
+import { ItemsService } from '../items/items.service';
+import { LocationsService } from '../locations/locations.service';
+import { MovementPayload, MovementsService } from './movements.service';
 
 @Component({
   selector: 'app-movement-form',
@@ -21,6 +27,9 @@ const ZONE_C: Location = { id: 'loc-c', name: 'Zone C', zone: 'C' };
 export class MovementFormComponent {
   private readonly fb = inject(FormBuilder);
   private readonly route = inject(ActivatedRoute);
+  private readonly itemsApi = inject(ItemsService);
+  private readonly locationsApi = inject(LocationsService);
+  private readonly movementsApi = inject(MovementsService);
 
   readonly saving = signal(false);
   readonly error = signal<string | null>(null);
@@ -35,36 +44,17 @@ export class MovementFormComponent {
   ]);
 
   /** GET /api/items */
-  readonly items = signal<Item[]>([
-    { id: 'itm-001', sku: 'SKU-001', name: 'Hex Bolt M8 × 40mm', description: null, unit: 'box', reorderAt: 10, totalQty: 8 },
-    { id: 'itm-002', sku: 'SKU-002', name: 'Nylon Washer 12mm', description: null, unit: 'bag', reorderAt: 25, totalQty: 140 },
-    { id: 'itm-003', sku: 'SKU-003', name: 'Steel Bracket L90', description: null, unit: 'each', reorderAt: 15, totalQty: 15 },
-    { id: 'itm-004', sku: 'SKU-004', name: 'Cable Tie 200mm', description: null, unit: 'pack', reorderAt: 30, totalQty: 12 },
-    { id: 'itm-005', sku: 'SKU-005', name: 'Safety Goggles', description: null, unit: 'each', reorderAt: 20, totalQty: 64 },
-    { id: 'itm-006', sku: 'SKU-006', name: 'Nitrile Gloves M', description: null, unit: 'box', reorderAt: 40, totalQty: 96 },
-    { id: 'itm-007', sku: 'SKU-007', name: 'Pallet Wrap Roll', description: null, unit: 'roll', reorderAt: 12, totalQty: 5 },
-    { id: 'itm-008', sku: 'SKU-008', name: 'Thermal Label Roll', description: null, unit: 'roll', reorderAt: 8, totalQty: 22 },
-  ]);
+  readonly items = signal<Item[]>([]);
 
   /** GET /api/locations */
-  readonly locations = signal<Location[]>([ZONE_A, ZONE_B, ZONE_C]);
+  readonly locations = signal<Location[]>([]);
 
-  /** Per-location balances used for the source hint and the over-draw guard. */
-  readonly stockLevels = signal<StockLevel[]>([
-    { id: 'sl-1', itemId: 'itm-001', locationId: 'loc-a', qty: 5, location: ZONE_A },
-    { id: 'sl-2', itemId: 'itm-001', locationId: 'loc-b', qty: 3, location: ZONE_B },
-    { id: 'sl-3', itemId: 'itm-002', locationId: 'loc-a', qty: 90, location: ZONE_A },
-    { id: 'sl-4', itemId: 'itm-002', locationId: 'loc-c', qty: 50, location: ZONE_C },
-    { id: 'sl-5', itemId: 'itm-003', locationId: 'loc-b', qty: 15, location: ZONE_B },
-    { id: 'sl-6', itemId: 'itm-004', locationId: 'loc-a', qty: 4, location: ZONE_A },
-    { id: 'sl-7', itemId: 'itm-004', locationId: 'loc-b', qty: 8, location: ZONE_B },
-    { id: 'sl-8', itemId: 'itm-005', locationId: 'loc-a', qty: 64, location: ZONE_A },
-    { id: 'sl-9', itemId: 'itm-006', locationId: 'loc-b', qty: 60, location: ZONE_B },
-    { id: 'sl-10', itemId: 'itm-006', locationId: 'loc-c', qty: 36, location: ZONE_C },
-    { id: 'sl-11', itemId: 'itm-007', locationId: 'loc-c', qty: 5, location: ZONE_C },
-    { id: 'sl-12', itemId: 'itm-008', locationId: 'loc-a', qty: 10, location: ZONE_A },
-    { id: 'sl-13', itemId: 'itm-008', locationId: 'loc-c', qty: 12, location: ZONE_C },
-  ]);
+  /**
+   * Per-location balances for the selected item, from GET /api/items/:id.
+   * Only the chosen item's breakdown is held: there is no bulk stock-levels
+   * endpoint, and fetching the whole grid to read one cell would be wasteful.
+   */
+  readonly stockLevels = signal<StockLevel[]>([]);
 
   private readonly qp = toSignal(this.route.queryParamMap, {
     initialValue: this.route.snapshot.queryParamMap,
@@ -104,6 +94,13 @@ export class MovementFormComponent {
     () => this.items().find((i) => i.id === this.formValue().itemId) ?? null,
   );
 
+  /**
+   * The selected item id on its own. `formValue()` changes on every keystroke
+   * in the note field; this only notifies when the item actually changes, so
+   * the breakdown is refetched once per selection rather than per character.
+   */
+  private readonly selectedItemId = computed(() => this.formValue().itemId ?? '');
+
   /** Quantity currently held at the chosen source location. */
   readonly sourceQty = computed(() => {
     const itemId = this.formValue().itemId;
@@ -118,6 +115,28 @@ export class MovementFormComponent {
   });
 
   constructor() {
+    if (PREVIEW_MODE) {
+      this.items.set(previewItems());
+      this.locations.set(previewLocations());
+      this.stockLevels.set(previewStockLevels());
+    } else {
+      this.loadReferenceData();
+
+      // The breakdown follows the selected item, so the source hint and the
+      // over-draw check always read the balance the API currently holds.
+      effect(() => {
+        const itemId = this.selectedItemId();
+        if (!itemId) {
+          this.stockLevels.set([]);
+          return;
+        }
+        this.itemsApi.get(itemId).subscribe({
+          next: (detail) => this.stockLevels.set(detail.stockLevels),
+          error: () => this.stockLevels.set([]),
+        });
+      });
+    }
+
     // Prefill from ?type=&itemId=&fromLocId= so the form is deep-linkable.
     effect(() => {
       const params = this.qp();
@@ -149,6 +168,19 @@ export class MovementFormComponent {
       } else {
         to.disable({ emitEvent: false });
       }
+    });
+  }
+
+  private loadReferenceData(): void {
+    this.itemsApi.list().subscribe({
+      next: (rows) => this.items.set(rows),
+      error: (err: unknown) =>
+        this.error.set(apiMessage(err, 'Could not load the item catalogue.')),
+    });
+    this.locationsApi.list().subscribe({
+      next: (rows) => this.locations.set(rows),
+      error: (err: unknown) =>
+        this.error.set(apiMessage(err, 'Could not load locations.')),
     });
   }
 
@@ -207,18 +239,70 @@ export class MovementFormComponent {
       return;
     }
 
-    const item = this.selectedItem();
+    if (PREVIEW_MODE) {
+      this.announce(value.itemId, value.qty, value.fromLocId, value.toLocId);
+      return;
+    }
+
+    const payload: MovementPayload = {
+      type: this.type(),
+      itemId: value.itemId,
+      qty: Number(value.qty),
+      note: value.note.trim() || null,
+      fromLocId: this.needsFrom() ? value.fromLocId : null,
+      toLocId: this.needsTo() ? value.toLocId : null,
+    };
+
+    this.saving.set(true);
+    this.movementsApi.create(payload).subscribe({
+      next: () => {
+        this.saving.set(false);
+        this.announce(value.itemId, value.qty, value.fromLocId, value.toLocId);
+        // Balances have moved: refresh the catalogue totals and the breakdown
+        // behind the source hint so a second movement is checked against the
+        // new numbers rather than the ones from before this write.
+        this.refreshBalances(value.itemId);
+      },
+      error: (err: unknown) => {
+        this.saving.set(false);
+        // The API is the authority on whether the stock was there. A 400
+        // "Insufficient stock" means nothing was written at all.
+        this.error.set(apiMessage(err, 'Could not record this movement.'));
+        this.refreshBalances(value.itemId);
+      },
+    });
+  }
+
+  /** Success copy, identical for the live API and the static preview. */
+  private announce(
+    itemId: string,
+    qty: number,
+    fromLocId: string,
+    toLocId: string,
+  ): void {
+    const item = this.items().find((i) => i.id === itemId) ?? null;
     const where =
       this.type() === 'IN'
-        ? `into ${this.locationName(value.toLocId)}`
+        ? `into ${this.locationName(toLocId)}`
         : this.type() === 'OUT'
-          ? `from ${this.locationName(value.fromLocId)}`
-          : `from ${this.locationName(value.fromLocId)} to ${this.locationName(value.toLocId)}`;
+          ? `from ${this.locationName(fromLocId)}`
+          : `from ${this.locationName(fromLocId)} to ${this.locationName(toLocId)}`;
 
-    this.recordedItemId.set(value.itemId);
+    this.recordedItemId.set(itemId);
     this.success.set(
-      `Recorded ${this.type()} ${value.qty} × ${item?.sku ?? ''} ${where}.`,
+      `Recorded ${this.type()} ${qty} × ${item?.sku ?? ''} ${where}.`,
     );
     this.form.patchValue({ qty: 1, note: '' });
+  }
+
+  private refreshBalances(itemId: string): void {
+    this.itemsApi.list().subscribe({
+      next: (rows) => this.items.set(rows),
+      error: () => undefined,
+    });
+    this.itemsApi.get(itemId).subscribe({
+      next: (detail) => this.stockLevels.set(detail.stockLevels),
+      error: () => undefined,
+    });
   }
 }

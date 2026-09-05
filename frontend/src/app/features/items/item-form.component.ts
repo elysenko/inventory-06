@@ -3,8 +3,14 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
+import { toApiError } from '../../core/api-error';
+import { PREVIEW_MODE } from '../../core/preview-flag';
 import { ErrorBannerComponent } from '../../shared/error-banner.component';
+import { previewItems } from '../../shared/preview-data';
 import type { Item } from '../../shared/models';
+import { ItemPayload, ItemsService } from './items.service';
+
+const BASE_UNITS = ['each', 'box', 'bag', 'pack', 'roll', 'pallet'];
 
 @Component({
   selector: 'app-item-form',
@@ -18,25 +24,24 @@ export class ItemFormComponent {
   private readonly fb = inject(FormBuilder);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly api = inject(ItemsService);
 
   readonly saving = signal(false);
   readonly error = signal<string | null>(null);
   /** 400 "sku already exists", surfaced against the sku control. */
   readonly skuServerError = signal<string | null>(null);
 
-  readonly units = signal<string[]>(['each', 'box', 'bag', 'pack', 'roll', 'pallet']);
+  /** The item being edited, loaded from GET /api/items/:id. */
+  readonly existing = signal<Item | null>(null);
 
-  /** Catalogue used to prefill the edit form and detect duplicate SKUs. */
-  readonly items = signal<Item[]>([
-    { id: 'itm-001', sku: 'SKU-001', name: 'Hex Bolt M8 × 40mm', description: 'Zinc-plated, DIN 933', unit: 'box', reorderAt: 10, totalQty: 8 },
-    { id: 'itm-002', sku: 'SKU-002', name: 'Nylon Washer 12mm', description: 'Natural nylon 6/6', unit: 'bag', reorderAt: 25, totalQty: 140 },
-    { id: 'itm-003', sku: 'SKU-003', name: 'Steel Bracket L90', description: 'Powder-coated mild steel', unit: 'each', reorderAt: 15, totalQty: 15 },
-    { id: 'itm-004', sku: 'SKU-004', name: 'Cable Tie 200mm', description: 'UV-stable, black', unit: 'pack', reorderAt: 30, totalQty: 12 },
-    { id: 'itm-005', sku: 'SKU-005', name: 'Safety Goggles', description: 'Anti-fog polycarbonate', unit: 'each', reorderAt: 20, totalQty: 64 },
-    { id: 'itm-006', sku: 'SKU-006', name: 'Nitrile Gloves M', description: 'Powder-free, 100 per box', unit: 'box', reorderAt: 40, totalQty: 96 },
-    { id: 'itm-007', sku: 'SKU-007', name: 'Pallet Wrap Roll', description: '500mm × 300m stretch film', unit: 'roll', reorderAt: 12, totalQty: 5 },
-    { id: 'itm-008', sku: 'SKU-008', name: 'Thermal Label Roll', description: '100mm × 150mm, 500 labels', unit: 'roll', reorderAt: 8, totalQty: 22 },
-  ]);
+  /**
+   * A stock unit the catalogue already uses but that is not one of the
+   * built-in options would otherwise render as a blank select on edit.
+   */
+  readonly units = computed(() => {
+    const unit = this.existing()?.unit;
+    return unit && !BASE_UNITS.includes(unit) ? [...BASE_UNITS, unit] : BASE_UNITS;
+  });
 
   private readonly params = toSignal(this.route.paramMap, {
     initialValue: this.route.snapshot.paramMap,
@@ -44,9 +49,6 @@ export class ItemFormComponent {
 
   readonly itemId = computed(() => this.params().get('id'));
   readonly isEdit = computed(() => this.itemId() !== null);
-  readonly existing = computed(
-    () => this.items().find((i) => i.id === this.itemId()) ?? null,
-  );
 
   readonly form = this.fb.nonNullable.group({
     sku: ['', [Validators.required, Validators.maxLength(64)]],
@@ -57,6 +59,23 @@ export class ItemFormComponent {
   });
 
   constructor() {
+    effect(() => {
+      const id = this.itemId();
+      if (!id) {
+        this.existing.set(null);
+        return;
+      }
+      if (PREVIEW_MODE) {
+        this.existing.set(previewItems().find((i) => i.id === id) ?? null);
+        return;
+      }
+      this.api.get(id).subscribe({
+        next: (item) => this.existing.set(item),
+        error: (err: unknown) =>
+          this.error.set(toApiError(err, 'Could not load this item.').message),
+      });
+    });
+
     effect(() => {
       const item = this.existing();
       if (item) {
@@ -92,19 +111,53 @@ export class ItemFormComponent {
     }
 
     const value = this.form.getRawValue();
-    const clash = this.items().find(
-      (i) =>
-        i.sku.toLowerCase() === value.sku.trim().toLowerCase() &&
-        i.id !== this.itemId(),
-    );
-    if (clash) {
-      // Mirrors the API contract: Prisma P2002 maps to 400 "sku already exists".
-      this.skuServerError.set('sku already exists');
+    const payload: ItemPayload = {
+      sku: value.sku.trim(),
+      name: value.name.trim(),
+      description: value.description.trim() || null,
+      unit: value.unit,
+      reorderAt: Number(value.reorderAt),
+    };
+
+    if (PREVIEW_MODE) {
+      const clash = previewItems().find(
+        (i) =>
+          i.sku.toLowerCase() === payload.sku.toLowerCase() &&
+          i.id !== this.itemId(),
+      );
+      if (clash) {
+        // Mirrors the API contract: Prisma P2002 maps to 400 "sku already exists".
+        this.skuServerError.set('sku already exists');
+        return;
+      }
+      this.saving.set(true);
+      void this.router.navigate(['/items']);
       return;
     }
 
     this.saving.set(true);
-    void this.router.navigate(['/items']);
+    const id = this.itemId();
+    const request = id
+      ? this.api.update(id, payload)
+      : this.api.create(payload);
+
+    request.subscribe({
+      next: (item) => void this.router.navigate(['/items', item.id]),
+      error: (err: unknown) => {
+        this.saving.set(false);
+        const failure = toApiError(err, 'Could not save this item.');
+        // The API tags a unique-constraint failure with the offending column,
+        // so a duplicate SKU lands on the sku control rather than the banner.
+        if (
+          failure.status === 400 &&
+          (failure.field === 'sku' || /sku/i.test(failure.message))
+        ) {
+          this.skuServerError.set(failure.message);
+          return;
+        }
+        this.error.set(failure.message);
+      },
+    });
   }
 
   cancel(): void {

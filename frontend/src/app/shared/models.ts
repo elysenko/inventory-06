@@ -8,6 +8,8 @@ export type MovementType = 'IN' | 'OUT' | 'TRANSFER';
 export interface User {
   id: string;
   email: string;
+  /** Display name captured at signup; shown alongside the audit trail. */
+  name?: string | null;
   role: Role;
   createdAt?: string;
 }
@@ -66,8 +68,11 @@ export interface LowStockRow {
 
 export interface SettingKey {
   key: string;
+  /** Masked by the API — enough to recognise, never enough to reuse. */
   value: string;
   configured: boolean;
+  /** Where the effective value came from: the pod env, the DB, or nowhere. */
+  source?: 'env' | 'db' | null;
 }
 
 export interface SettingsService {

@@ -5,7 +5,8 @@ import { Observable, map, of, tap } from 'rxjs';
 
 import type { Role, User } from '../shared/models';
 import { API_BASE } from './api-base';
-import { readJson, removeKeys, writeJson, writeRaw } from './storage';
+import { PREVIEW_MODE } from './preview-flag';
+import { readJson, readRaw, removeKeys, writeJson, writeRaw } from './storage';
 
 const USER_KEY = 'user';
 const TOKEN_KEY = 'token';
@@ -14,6 +15,11 @@ const TOKEN_KEY = 'token';
 const PUBLIC_SEGMENTS = ['login', 'signup'];
 
 const ROLES: readonly Role[] = ['ADMIN', 'MANAGER', 'CLERK', 'USER'];
+
+interface AuthResult {
+  token: string;
+  user: User;
+}
 
 /** Anything read back from browser storage is untrusted — validate the shape. */
 function isUser(value: unknown): value is User {
@@ -60,13 +66,17 @@ export class AuthService {
 
     if (isUser(stored)) {
       this.user.set(stored);
+      // Re-check the token against the API so a role change or an expired
+      // token is reflected on the next load rather than on the next 401. The
+      // guards already have the cached user, so this never delays first paint.
+      this.refresh();
       return;
     }
     if (stored !== null) {
       removeKeys(USER_KEY, TOKEN_KEY);
     }
 
-    if (COLOSSUS_PREVIEW) {
+    if (PREVIEW_MODE) {
       // Static preview has no API. Treat a cold load of an authenticated route
       // as already signed in so every screen is deep-linkable, while /login and
       // /signup stay directly reachable and reviewable.
@@ -80,8 +90,30 @@ export class AuthService {
     }
   }
 
+  /**
+   * Revalidates the stored token against GET /api/auth/me.
+   *
+   * A 401 is handled by the interceptor, which clears storage and routes to
+   * /login; anything else (an API blip) is ignored so a transient failure does
+   * not sign the user out.
+   */
+  refresh(): void {
+    if (PREVIEW_MODE || !readRaw(TOKEN_KEY)) {
+      return;
+    }
+    this.http.get<User>(`${API_BASE}/auth/me`).subscribe({
+      next: (user) => {
+        writeJson(USER_KEY, user);
+        this.user.set(user);
+      },
+      error: () => {
+        /* 401 already handled by authInterceptor; keep the cached session. */
+      },
+    });
+  }
+
   login(email: string, password: string): Observable<User> {
-    if (COLOSSUS_PREVIEW) {
+    if (PREVIEW_MODE) {
       // Resolved locally and synchronously — a network call would fail on the
       // static preview host and strand the reviewer on the sign-in screen.
       const address = email.trim();
@@ -89,38 +121,44 @@ export class AuthService {
       return of(this.seedSession({ id: 'preview-user', email: address, role }));
     }
     return this.http
-      .post<{ token: string; user: User }>(`${API_BASE}/auth/login`, {
-        email,
-        password,
-      })
+      .post<AuthResult>(`${API_BASE}/auth/login`, { email, password })
       .pipe(
         tap((res) => this.setSession(res.user, res.token)),
         map((res) => res.user),
       );
   }
 
-  signup(email: string, password: string): Observable<User> {
-    if (COLOSSUS_PREVIEW) {
+  signup(email: string, password: string, name?: string): Observable<User> {
+    if (PREVIEW_MODE) {
       return of(
         this.seedSession({
           id: 'preview-user',
           email: email.trim(),
+          name: name ?? null,
           role: 'CLERK',
         }),
       );
     }
     return this.http
-      .post<{ token: string; user: User }>(`${API_BASE}/auth/signup`, {
-        email,
-        password,
-      })
+      .post<AuthResult>(`${API_BASE}/auth/signup`, { email, password, name })
       .pipe(
         tap((res) => this.setSession(res.user, res.token)),
         map((res) => res.user),
       );
   }
 
+  /**
+   * Stateless sign-out: the client drops the token. The API is told as a
+   * courtesy so it can log the event, but the local state is cleared either
+   * way — a failed call must never leave the user stuck signed in.
+   */
   logout(): void {
+    if (!PREVIEW_MODE && readRaw(TOKEN_KEY)) {
+      this.http.post(`${API_BASE}/auth/logout`, {}).subscribe({
+        next: () => undefined,
+        error: () => undefined,
+      });
+    }
     removeKeys(USER_KEY, TOKEN_KEY);
     this.user.set(null);
     void this.router.navigate(['/login']);
@@ -131,7 +169,7 @@ export class AuthService {
    * authenticated home screen. Needs no credentials of any kind.
    */
   previewSignIn(role: Role = 'MANAGER'): void {
-    if (!COLOSSUS_PREVIEW) {
+    if (!PREVIEW_MODE) {
       return;
     }
     this.seedPreviewSession(role);
@@ -140,7 +178,7 @@ export class AuthService {
 
   /** Preview-only: re-enter the app as the other role to review role gating. */
   previewSwitchRole(role: Role): void {
-    if (!COLOSSUS_PREVIEW) {
+    if (!PREVIEW_MODE) {
       return;
     }
     this.seedPreviewSession(role);

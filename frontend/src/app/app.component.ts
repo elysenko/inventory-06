@@ -15,6 +15,7 @@ import {
 import { filter } from 'rxjs';
 
 import { AuthService } from './core/auth.service';
+import { PREVIEW_MODE } from './core/preview-flag';
 import type { Role } from './shared/models';
 
 interface NavItem {
@@ -39,7 +40,7 @@ export class AppComponent {
   readonly auth = inject(AuthService);
 
   /** Preview-only affordances (role switcher) compile out of production. */
-  readonly preview = COLOSSUS_PREVIEW;
+  readonly preview = PREVIEW_MODE;
 
   readonly url = signal(this.router.url);
   readonly drawerOpen = signal(false);

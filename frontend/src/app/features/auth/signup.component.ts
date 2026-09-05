@@ -9,6 +9,7 @@ import {
 import { Router, RouterLink } from '@angular/router';
 
 import { AuthService } from '../../core/auth.service';
+import { PREVIEW_MODE } from '../../core/preview-flag';
 import { ErrorBannerComponent } from '../../shared/error-banner.component';
 
 function passwordsMatch(group: AbstractControl): ValidationErrors | null {
@@ -30,8 +31,8 @@ export class SignupComponent {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
 
-  readonly preview = COLOSSUS_PREVIEW;
-  readonly previewShortcut = COLOSSUS_PREVIEW ? 'Skip login — Demo Mode' : '';
+  readonly preview = PREVIEW_MODE;
+  readonly previewShortcut = PREVIEW_MODE ? 'Skip login — Demo Mode' : '';
 
   readonly submitting = signal(false);
   readonly error = signal<string | null>(null);
@@ -72,8 +73,8 @@ export class SignupComponent {
     }
 
     this.submitting.set(true);
-    const { email, password } = this.form.getRawValue();
-    this.auth.signup(email, password).subscribe({
+    const { name, email, password } = this.form.getRawValue();
+    this.auth.signup(email, password, name).subscribe({
       next: () => void this.router.navigate(['/items']),
       error: (err: { status?: number; error?: { message?: string } }) => {
         this.submitting.set(false);

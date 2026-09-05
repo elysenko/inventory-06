@@ -2,9 +2,13 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
+import { apiMessage } from '../../core/api-error';
 import { AuthService } from '../../core/auth.service';
+import { PREVIEW_MODE } from '../../core/preview-flag';
 import { ErrorBannerComponent } from '../../shared/error-banner.component';
+import { previewItems } from '../../shared/preview-data';
 import type { Item } from '../../shared/models';
+import { ItemsService } from './items.service';
 
 const PAGE_SIZE = 5;
 
@@ -19,23 +23,23 @@ const PAGE_SIZE = 5;
 export class ItemListComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly api = inject(ItemsService);
   readonly auth = inject(AuthService);
 
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly pageSize = PAGE_SIZE;
 
-  /** Catalogue rows — GET /api/items maps each item to `{ ...item, totalQty }`. */
-  readonly items = signal<Item[]>([
-    { id: 'itm-001', sku: 'SKU-001', name: 'Hex Bolt M8 × 40mm', description: 'Zinc-plated, DIN 933', unit: 'box', reorderAt: 10, totalQty: 8 },
-    { id: 'itm-002', sku: 'SKU-002', name: 'Nylon Washer 12mm', description: 'Natural nylon 6/6', unit: 'bag', reorderAt: 25, totalQty: 140 },
-    { id: 'itm-003', sku: 'SKU-003', name: 'Steel Bracket L90', description: 'Powder-coated mild steel', unit: 'each', reorderAt: 15, totalQty: 15 },
-    { id: 'itm-004', sku: 'SKU-004', name: 'Cable Tie 200mm', description: 'UV-stable, black', unit: 'pack', reorderAt: 30, totalQty: 12 },
-    { id: 'itm-005', sku: 'SKU-005', name: 'Safety Goggles', description: 'Anti-fog polycarbonate', unit: 'each', reorderAt: 20, totalQty: 64 },
-    { id: 'itm-006', sku: 'SKU-006', name: 'Nitrile Gloves M', description: 'Powder-free, 100 per box', unit: 'box', reorderAt: 40, totalQty: 96 },
-    { id: 'itm-007', sku: 'SKU-007', name: 'Pallet Wrap Roll', description: '500mm × 300m stretch film', unit: 'roll', reorderAt: 12, totalQty: 5 },
-    { id: 'itm-008', sku: 'SKU-008', name: 'Thermal Label Roll', description: '100mm × 150mm, 500 labels', unit: 'roll', reorderAt: 8, totalQty: 22 },
-  ]);
+  /**
+   * The full catalogue from GET /api/items, each row carrying the `totalQty`
+   * roll-up the API computes across every location.
+   *
+   * The whole catalogue is fetched once and the search / low-stock / paging
+   * filters stay client-side. The API supports `?q=` and `?lowStock=` too, but
+   * the header reads "{{ filtered().length }} of {{ items().length }}" — that
+   * count is only meaningful when `items()` holds the unfiltered catalogue.
+   */
+  readonly items = signal<Item[]>([]);
 
   private readonly qp = toSignal(this.route.queryParamMap, {
     initialValue: this.route.snapshot.queryParamMap,
@@ -75,6 +79,29 @@ export class ItemListComponent {
   readonly lowStockCount = computed(
     () => this.items().filter((i) => i.totalQty <= i.reorderAt).length,
   );
+
+  constructor() {
+    if (PREVIEW_MODE) {
+      this.items.set(previewItems());
+      return;
+    }
+    this.load();
+  }
+
+  private load(): void {
+    this.loading.set(true);
+    this.error.set(null);
+    this.api.list().subscribe({
+      next: (rows) => {
+        this.items.set(rows);
+        this.loading.set(false);
+      },
+      error: (err: unknown) => {
+        this.error.set(apiMessage(err, 'Could not load the item catalogue.'));
+        this.loading.set(false);
+      },
+    });
+  }
 
   isLow(item: Item): boolean {
     return item.totalQty <= item.reorderAt;

@@ -1,5 +1,13 @@
 <div class="page">
-  @if (!item()) {
+  @if (loading()) {
+    <section class="card">
+      <div class="card-pad">
+        <div class="skeleton-row"></div>
+        <div class="skeleton-row"></div>
+        <div class="skeleton-row"></div>
+      </div>
+    </section>
+  } @else if (!item()) {
     <section class="card">
       <div class="state">
         <p class="state-title">Item not found</p>

@@ -25,11 +25,21 @@ services:
       db:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://stockroom:stockroom@db:5432/stockroom
+      # The platform injects DATABASE_URL from its secret; the compose default
+      # only covers a local `docker compose up` against the bundled db service.
+      DATABASE_URL: ${DATABASE_URL:-postgresql://stockroom:stockroom@db:5432/stockroom}
       JWT_SECRET: ${JWT_SECRET:-local-development-secret-change-me}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-24h}
       PORT: '3001'
       NODE_ENV: production
+      # Object storage. Absent values are not an error: MinIO reports itself
+      # as unconfigured on Admin > Settings and no other feature is affected.
+      # The platform publishes the credentials as MINIO_ROOT_USER /
+      # MINIO_ROOT_PASSWORD — see .env.example for the mapping.
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-}
+      MINIO_BUCKET: ${MINIO_BUCKET:-stockroom}
     ports:
       - '3001:3001'
     healthcheck:
