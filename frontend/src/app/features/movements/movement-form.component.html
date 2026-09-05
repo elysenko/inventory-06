@@ -1,0 +1,143 @@
+<div class="page page-narrow">
+  <div class="page-head">
+    <div>
+      <h1 class="page-title">Record movement</h1>
+      <p class="page-sub">
+        Balances and the audit entry are written together — a movement either
+        lands completely or not at all.
+      </p>
+    </div>
+  </div>
+
+  <app-error-banner [message]="error()" />
+
+  @if (success()) {
+    <div class="success-block">
+      <app-error-banner [message]="success()" tone="success" />
+      @if (recordedItemId(); as id) {
+        <a class="btn btn-ghost" [routerLink]="['/items', id]">View item stock</a>
+      }
+    </div>
+  }
+
+  <section class="card card-pad">
+    <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      <fieldset class="type-group">
+        <legend class="field-label">Movement type</legend>
+        <div class="type-options">
+          @for (option of types(); track option.value) {
+            <label class="type-option" [class.is-selected]="type() === option.value">
+              <input
+                type="radio"
+                name="type"
+                [value]="option.value"
+                [checked]="type() === option.value"
+                (change)="selectType(option.value)"
+              />
+              <span class="type-label">{{ option.label }}</span>
+              <span class="type-hint">{{ option.hint }}</span>
+            </label>
+          }
+        </div>
+      </fieldset>
+
+      <div class="field">
+        <label class="field-label" for="movement-filter">Find item</label>
+        <input
+          id="movement-filter"
+          class="input"
+          type="search"
+          placeholder="Type a SKU or name to narrow the list…"
+          [value]="itemFilter()"
+          (input)="onFilter($event)"
+        />
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="movement-item">Item</label>
+        <select
+          id="movement-item"
+          class="select"
+          formControlName="itemId"
+          [size]="filteredItems().length > 1 ? 5 : 1"
+        >
+          <option value="" disabled>Select an item…</option>
+          @for (item of filteredItems(); track item.id) {
+            <option [value]="item.id">{{ item.sku }} — {{ item.name }}</option>
+          }
+        </select>
+        @if (selectedItem(); as item) {
+          <span class="field-hint">
+            {{ item.sku }} is measured in {{ item.unit }} · {{ item.totalQty }} on hand across all zones
+          </span>
+        }
+      </div>
+
+      <div class="form-grid">
+        @if (needsFrom()) {
+          <div class="field">
+            <label class="field-label" for="movement-from">From location</label>
+            <select id="movement-from" class="select" formControlName="fromLocId">
+              <option value="" disabled>Select a source zone…</option>
+              @for (location of locations(); track location.id) {
+                <option [value]="location.id">{{ location.name }}</option>
+              }
+            </select>
+            @if (sourceQty() !== null) {
+              <span class="field-hint source-hint">
+                Currently {{ sourceQty() }} on hand at this location.
+              </span>
+            }
+          </div>
+        }
+
+        @if (needsTo()) {
+          <div class="field">
+            <label class="field-label" for="movement-to">To location</label>
+            <select id="movement-to" class="select" formControlName="toLocId">
+              <option value="" disabled>Select a destination zone…</option>
+              @for (location of locations(); track location.id) {
+                <option [value]="location.id">{{ location.name }}</option>
+              }
+            </select>
+          </div>
+        }
+
+        <div class="field">
+          <label class="field-label" for="movement-qty">Quantity</label>
+          <input
+            id="movement-qty"
+            class="input"
+            [class.is-invalid]="qty.touched && qty.invalid"
+            type="number"
+            min="1"
+            step="1"
+            inputmode="numeric"
+            formControlName="qty"
+          />
+          @if (qty.touched && qty.invalid) {
+            <span class="field-error">Quantity must be 1 or more.</span>
+          }
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="movement-note">Note</label>
+        <textarea
+          id="movement-note"
+          class="textarea"
+          formControlName="note"
+          placeholder="Purchase order, work order or reason…"
+        ></textarea>
+        <span class="field-hint">Optional, but it makes the audit log far more useful.</span>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary" [disabled]="saving()">
+          Record movement
+        </button>
+        <a class="btn btn-ghost" routerLink="/items">Back to items</a>
+      </div>
+    </form>
+  </section>
+</div>

@@ -1,0 +1,25 @@
+.head-actions {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.item-name { display: block; font-weight: 600; }
+
+.item-desc {
+  display: block;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+}
+
+.strong { font-weight: 700; }
+
+.pager-btns { display: flex; gap: var(--space-2); }
+
+@media (max-width: 768px) {
+  .head-actions { width: 100%; }
+  .head-actions .btn { flex: 1; }
+  .pager { justify-content: center; }
+  .pager-btns { width: 100%; }
+  .pager-btns .btn { flex: 1; }
+}

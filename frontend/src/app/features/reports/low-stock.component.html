@@ -1,0 +1,84 @@
+<div class="page">
+  <div class="page-head">
+    <div>
+      <h1 class="page-title">Low stock</h1>
+      <p class="page-sub">
+        Items whose total quantity on hand has reached or fallen below their
+        reorder point.
+      </p>
+    </div>
+    <div class="head-actions">
+      <a class="btn btn-ghost" [routerLink]="['/items']" [queryParams]="{ lowStock: 'true' }">
+        Filter catalogue
+      </a>
+      <a class="btn btn-primary" routerLink="/movements/new" [queryParams]="{ type: 'IN' }">
+        Record goods in
+      </a>
+    </div>
+  </div>
+
+  <app-error-banner [message]="error()" />
+
+  @if (rows().length > 0) {
+    <section class="stat-grid summary">
+      <div class="stat">
+        <p class="stat-label">Lines at or below</p>
+        <p class="stat-value">{{ rows().length }}</p>
+      </div>
+      <div class="stat">
+        <p class="stat-label">Below reorder point</p>
+        <p class="stat-value">{{ criticalCount() }}</p>
+      </div>
+      <div class="stat">
+        <p class="stat-label">Units to reorder</p>
+        <p class="stat-value">{{ totalDeficit() }}</p>
+      </div>
+    </section>
+  }
+
+  <section class="card">
+    @if (loading()) {
+      <div class="card-pad">
+        <div class="skeleton-row"></div>
+        <div class="skeleton-row"></div>
+      </div>
+    } @else if (rows().length === 0) {
+      <div class="state">
+        <p class="state-title">Nothing is running low</p>
+        <p>Every item in the catalogue is above its reorder point.</p>
+        <a class="btn btn-ghost" routerLink="/items">Back to items</a>
+      </div>
+    } @else {
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th scope="col">SKU</th>
+              <th scope="col">Name</th>
+              <th scope="col">Unit</th>
+              <th scope="col" class="num">On hand</th>
+              <th scope="col" class="num">Reorder at</th>
+              <th scope="col" class="num">Deficit</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of rows(); track row.id) {
+              <tr class="row-link" (click)="open(row)">
+                <td class="mono">{{ row.sku }}</td>
+                <td class="strong">{{ row.name }}</td>
+                <td>{{ row.unit }}</td>
+                <td class="num">{{ row.totalQty }}</td>
+                <td class="num">{{ row.reorderAt }}</td>
+                <td class="num">
+                  <span class="badge" [class]="severity(row)">
+                    {{ row.deficit > 0 ? '−' + row.deficit : 'At limit' }}
+                  </span>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+</div>

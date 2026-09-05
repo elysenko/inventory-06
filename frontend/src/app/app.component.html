@@ -1,0 +1,131 @@
+<div class="shell" [class.shell-chromeless]="chromeless()" data-testid="app-ready">
+  @if (!chromeless()) {
+    <header class="topbar">
+      <button
+        type="button"
+        class="icon-btn menu-btn"
+        aria-label="Open navigation menu"
+        [attr.aria-expanded]="drawerOpen()"
+        (click)="toggleDrawer()"
+      >
+        <span class="menu-glyph" aria-hidden="true"></span>
+      </button>
+
+      <a class="brand" routerLink="/items">
+        <span class="brand-mark" aria-hidden="true">SR</span>
+        <span class="brand-name">StockRoom</span>
+      </a>
+
+      <span class="topbar-spacer"></span>
+
+      @if (auth.user(); as user) {
+        <span class="badge badge-role user-role">{{ roleLabel() }}</span>
+        <span class="user-email" title="{{ user.email }}">{{ user.email }}</span>
+        <button type="button" class="btn btn-ghost logout-btn" (click)="logout()">
+          Sign out
+        </button>
+      }
+    </header>
+
+    <nav class="sidebar" aria-label="Main">
+      <ul>
+        @for (item of visibleNav(); track item.path) {
+          <li>
+            <a
+              class="nav-link"
+              [routerLink]="item.path"
+              routerLinkActive="is-active"
+              [routerLinkActiveOptions]="{ exact: item.exact }"
+            >
+              <span class="nav-icon" aria-hidden="true">{{ item.icon }}</span>
+              <span>{{ item.label }}</span>
+            </a>
+          </li>
+        }
+      </ul>
+
+      @if (preview) {
+        <div class="role-switch">
+          <label class="field-label" for="preview-role">Preview as</label>
+          <select
+            id="preview-role"
+            class="select"
+            [value]="auth.user()?.role ?? 'MANAGER'"
+            (change)="onRoleChange($event)"
+          >
+            <option value="MANAGER">Manager</option>
+            <option value="CLERK">Clerk</option>
+          </select>
+          <p class="field-hint">Clerks see a reduced catalogue-only menu.</p>
+        </div>
+      }
+    </nav>
+
+    @if (drawerOpen()) {
+      <div class="scrim" (click)="closeDrawer()"></div>
+      <nav class="drawer" aria-label="Main">
+        <div class="drawer-head">
+          <span class="brand-name">StockRoom</span>
+          <button type="button" class="icon-btn" aria-label="Close navigation menu" (click)="closeDrawer()">✕</button>
+        </div>
+        <ul>
+          @for (item of visibleNav(); track item.path) {
+            <li>
+              <a
+                class="nav-link"
+                [routerLink]="item.path"
+                routerLinkActive="is-active"
+                [routerLinkActiveOptions]="{ exact: item.exact }"
+                (click)="closeDrawer()"
+              >
+                <span class="nav-icon" aria-hidden="true">{{ item.icon }}</span>
+                <span>{{ item.label }}</span>
+              </a>
+            </li>
+          }
+        </ul>
+        @if (preview) {
+          <div class="role-switch">
+            <label class="field-label" for="preview-role-drawer">Preview as</label>
+            <select
+              id="preview-role-drawer"
+              class="select"
+              [value]="auth.user()?.role ?? 'MANAGER'"
+              (change)="onRoleChange($event)"
+            >
+              <option value="MANAGER">Manager</option>
+              <option value="CLERK">Clerk</option>
+            </select>
+          </div>
+        }
+        <button type="button" class="btn btn-ghost btn-block drawer-signout" (click)="logout()">
+          Sign out
+        </button>
+      </nav>
+    }
+  }
+
+  <main class="content">
+    <router-outlet />
+  </main>
+
+  @if (!chromeless()) {
+    <nav class="tabbar" aria-label="Primary">
+      @for (item of visibleNav().slice(0, 4); track item.path) {
+        <a
+          class="tab-link"
+          [routerLink]="item.path"
+          routerLinkActive="is-active"
+          [routerLinkActiveOptions]="{ exact: item.exact }"
+        >
+          <span class="nav-icon" aria-hidden="true">{{ item.icon }}</span>
+          <span class="tab-label">{{ item.short }}</span>
+        </a>
+      }
+      <button type="button" class="tab-link" (click)="toggleDrawer()">
+        <span class="nav-icon" aria-hidden="true">⋯</span>
+        <span class="tab-label">More</span>
+      </button>
+    </nav>
+  }
+</div>

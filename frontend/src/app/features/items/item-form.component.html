@@ -1,0 +1,108 @@
+<div class="page page-narrow">
+  <nav class="crumbs">
+    <a routerLink="/items">Items</a>
+    <span aria-hidden="true">/</span>
+    <span>{{ isEdit() ? 'Edit' : 'New item' }}</span>
+  </nav>
+
+  <div class="page-head">
+    <div>
+      <h1 class="page-title">{{ isEdit() ? 'Edit item' : 'New item' }}</h1>
+      <p class="page-sub">
+        SKUs are unique across the catalogue. The reorder point drives the
+        low-stock report.
+      </p>
+    </div>
+  </div>
+
+  <app-error-banner [message]="error()" />
+
+  <section class="card card-pad">
+    <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      <div class="form-grid">
+        <div class="field">
+          <label class="field-label" for="item-sku">SKU</label>
+          <input
+            id="item-sku"
+            class="input"
+            [class.is-invalid]="(sku.touched && sku.invalid) || !!skuServerError()"
+            type="text"
+            formControlName="sku"
+            placeholder="SKU-009"
+            autocomplete="off"
+          />
+          @if (skuServerError()) {
+            <span class="field-error">{{ skuServerError() }}</span>
+          } @else if (sku.touched && sku.invalid) {
+            <span class="field-error">SKU is required (max 64 characters).</span>
+          } @else {
+            <span class="field-hint">Stock-keeping code, unique per item.</span>
+          }
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="item-unit">Unit of measure</label>
+          <select id="item-unit" class="select" formControlName="unit">
+            @for (unit of units(); track unit) {
+              <option [value]="unit">{{ unit }}</option>
+            }
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="item-name">Name</label>
+        <input
+          id="item-name"
+          class="input"
+          [class.is-invalid]="name.touched && name.invalid"
+          type="text"
+          formControlName="name"
+          placeholder="Hex Bolt M8 × 40mm"
+        />
+        @if (name.touched && name.invalid) {
+          <span class="field-error">Name is required.</span>
+        }
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="item-description">Description</label>
+        <textarea
+          id="item-description"
+          class="textarea"
+          formControlName="description"
+          placeholder="Material, finish, standard…"
+        ></textarea>
+        <span class="field-hint">Optional.</span>
+      </div>
+
+      <div class="field reorder-field">
+        <label class="field-label" for="item-reorder">Reorder point</label>
+        <input
+          id="item-reorder"
+          class="input"
+          [class.is-invalid]="reorderAt.touched && reorderAt.invalid"
+          type="number"
+          min="0"
+          step="1"
+          inputmode="numeric"
+          formControlName="reorderAt"
+        />
+        <span class="field-hint">
+          The item is reported as low when total quantity on hand is at or below
+          this number.
+        </span>
+        @if (reorderAt.touched && reorderAt.invalid) {
+          <span class="field-error">Enter a whole number of 0 or more.</span>
+        }
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary" [disabled]="saving()">
+          {{ isEdit() ? 'Save changes' : 'Create item' }}
+        </button>
+        <button type="button" class="btn btn-ghost" (click)="cancel()">Cancel</button>
+      </div>
+    </form>
+  </section>
+</div>

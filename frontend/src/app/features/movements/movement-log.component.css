@@ -1,0 +1,17 @@
+.head-actions { display: flex; gap: var(--space-3); flex-wrap: wrap; }
+
+.strong { font-weight: 700; }
+.muted { color: var(--color-text-muted); }
+.nowrap { white-space: nowrap; }
+.mono { font-family: var(--font-mono); font-size: var(--text-xs); font-weight: 700; }
+
+.pager-btns { display: flex; gap: var(--space-2); }
+
+@media (max-width: 768px) {
+  .head-actions { width: 100%; }
+  .head-actions .btn { flex: 1; }
+  .filters .field { flex: 1 1 100%; }
+  .pager { justify-content: center; }
+  .pager-btns { width: 100%; }
+  .pager-btns .btn { flex: 1; }
+}

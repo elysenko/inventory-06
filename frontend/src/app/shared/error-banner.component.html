@@ -1,0 +1,8 @@
+@if (message) {
+  <p class="banner" [class]="'banner-' + tone" role="alert">
+    <span class="banner-icon" aria-hidden="true">
+      {{ tone === 'success' ? '✔' : tone === 'warn' ? '⚑' : '!' }}
+    </span>
+    <span>{{ message }}</span>
+  </p>
+}

@@ -1,0 +1,68 @@
+<div class="page">
+  <div class="page-head">
+    <div>
+      <h1 class="page-title">Admin settings</h1>
+      <p class="page-sub">
+        Credentials for the backing services StockRoom depends on. Values set in
+        the environment take precedence over anything stored here.
+      </p>
+    </div>
+  </div>
+
+  @if (unconfigured().length > 0) {
+    <app-error-banner
+      tone="warn"
+      [message]="'The following need credentials to activate: ' + unconfiguredLabels()"
+    />
+  }
+
+  <app-error-banner [message]="error()" />
+  <app-error-banner [message]="notice()" tone="success" />
+
+  @for (service of services(); track service.service) {
+    <section class="card service">
+      <div class="card-head">
+        <div>
+          <h2 class="card-title">{{ service.label }}</h2>
+          <p class="field-hint service-desc">{{ service.description }}</p>
+        </div>
+        @if (service.configured) {
+          <span class="badge badge-in">Configured</span>
+        } @else {
+          <span class="badge badge-low">Needs credentials</span>
+        }
+      </div>
+
+      <div class="card-pad">
+        <form [formGroup]="formFor(service)" (ngSubmit)="save(service)" novalidate>
+          <div class="form-grid">
+            @for (entry of service.keys; track entry.key) {
+              <div class="field">
+                <label class="field-label" [attr.for]="service.service + '-' + entry.key">
+                  {{ entry.key }}
+                </label>
+                <input
+                  [id]="service.service + '-' + entry.key"
+                  class="input"
+                  type="text"
+                  [formControlName]="entry.key"
+                  autocomplete="off"
+                  [placeholder]="entry.configured ? entry.value : 'Not set'"
+                />
+                <span class="field-hint">
+                  {{ entry.configured ? 'Currently set — leave blank to keep it.' : 'No value stored.' }}
+                </span>
+              </div>
+            }
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">
+              Save {{ service.label }} credentials
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
+  }
+</div>

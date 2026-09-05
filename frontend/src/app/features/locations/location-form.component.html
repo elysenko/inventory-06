@@ -1,0 +1,59 @@
+<div class="page page-narrow">
+  <nav class="crumbs">
+    <a routerLink="/locations">Locations</a>
+    <span aria-hidden="true">/</span>
+    <span>{{ isEdit() ? 'Edit' : 'New location' }}</span>
+  </nav>
+
+  <div class="page-head">
+    <div>
+      <h1 class="page-title">{{ isEdit() ? 'Edit location' : 'New location' }}</h1>
+      <p class="page-sub">Location names are unique across the warehouse.</p>
+    </div>
+  </div>
+
+  <app-error-banner [message]="error()" />
+
+  <section class="card card-pad">
+    <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      <div class="form-grid">
+        <div class="field">
+          <label class="field-label" for="location-name">Name</label>
+          <input
+            id="location-name"
+            class="input"
+            [class.is-invalid]="(name.touched && name.invalid) || !!nameServerError()"
+            type="text"
+            formControlName="name"
+            placeholder="Zone D"
+          />
+          @if (nameServerError()) {
+            <span class="field-error">{{ nameServerError() }}</span>
+          } @else if (name.touched && name.invalid) {
+            <span class="field-error">Name is required.</span>
+          }
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="location-zone">Zone code</label>
+          <input
+            id="location-zone"
+            class="input"
+            [class.is-invalid]="zone.touched && zone.invalid"
+            type="text"
+            formControlName="zone"
+            placeholder="D"
+          />
+          <span class="field-hint">Short aisle or zone identifier.</span>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary" [disabled]="saving()">
+          {{ isEdit() ? 'Save changes' : 'Create location' }}
+        </button>
+        <button type="button" class="btn btn-ghost" (click)="cancel()">Cancel</button>
+      </div>
+    </form>
+  </section>
+</div>

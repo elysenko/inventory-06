@@ -2,9 +2,27 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>App</title>
+    <title>StockRoom</title>
     <base href="/" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script>
+      /**
+       * The static preview is served from https://<host>/<mockup_id>/ while the
+       * deployed app is served from the origin root. Rewrite <base href> from the
+       * first path segment so bundle URLs and router links resolve in both. Runs
+       * before the bundle <script>/<link> tags are parsed, so it is applied in
+       * time. Known top-level app routes are never treated as a mount prefix.
+       */
+      (function () {
+        var APP_SEGMENTS = ['login', 'signup', 'items', 'locations', 'movements', 'reports', 'admin'];
+        var seg = window.location.pathname.split('/')[1] || '';
+        if (seg && seg.indexOf('.') === -1 && APP_SEGMENTS.indexOf(seg) === -1) {
+          document.getElementsByTagName('base')[0].setAttribute('href', '/' + seg + '/');
+        }
+      })();
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="description" content="StockRoom — warehouse inventory, stock levels and movement audit." />
+    <meta name="theme-color" content="#0f5c8c" />
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
   </head>
   <body>

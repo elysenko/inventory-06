@@ -1,0 +1,103 @@
+<div class="auth">
+  <section class="auth-hero">
+    <span class="hero-mark" aria-hidden="true">SR</span>
+    <h2 class="hero-title">Join your warehouse team.</h2>
+    <p class="hero-note">
+      New accounts start as <strong>clerks</strong>: browse the catalogue, inspect
+      stock by zone and record movements. A manager can raise your role later.
+    </p>
+  </section>
+
+  <section class="auth-panel">
+    <div class="auth-card card">
+      <h1 class="auth-title">StockRoom</h1>
+      <p class="auth-sub">Create your account.</p>
+
+      <app-error-banner [message]="error()" />
+
+      <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+        <div class="field">
+          <label class="field-label" for="signup-name">Full name</label>
+          <input
+            id="signup-name"
+            class="input"
+            [class.is-invalid]="name.touched && name.invalid"
+            type="text"
+            formControlName="name"
+            autocomplete="name"
+            placeholder="Alex Whitfield"
+          />
+          @if (name.touched && name.invalid) {
+            <span class="field-error">Enter your full name.</span>
+          }
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="signup-email">Email address</label>
+          <input
+            id="signup-email"
+            class="input"
+            [class.is-invalid]="(email.touched && email.invalid) || !!emailServerError()"
+            type="email"
+            formControlName="email"
+            autocomplete="username"
+            inputmode="email"
+            placeholder="you@company.com"
+          />
+          @if (emailServerError()) {
+            <span class="field-error">{{ emailServerError() }}</span>
+          } @else if (email.touched && email.hasError('required')) {
+            <span class="field-error">Email address is required.</span>
+          } @else if (email.touched && email.hasError('email')) {
+            <span class="field-error">That does not look like an email address.</span>
+          }
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="signup-password">Password</label>
+          <input
+            id="signup-password"
+            class="input"
+            [class.is-invalid]="password.touched && password.invalid"
+            type="password"
+            formControlName="password"
+            autocomplete="new-password"
+          />
+          <span class="field-hint">At least 8 characters.</span>
+          @if (password.touched && password.invalid) {
+            <span class="field-error">Password must be at least 8 characters.</span>
+          }
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="signup-confirm">Confirm password</label>
+          <input
+            id="signup-confirm"
+            class="input"
+            [class.is-invalid]="confirm.touched && (confirm.invalid || form.hasError('mismatch'))"
+            type="password"
+            formControlName="confirm"
+            autocomplete="new-password"
+          />
+          @if (confirm.touched && form.hasError('mismatch')) {
+            <span class="field-error">Passwords do not match.</span>
+          }
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block" [disabled]="submitting()">
+          {{ submitting() ? 'Creating account…' : 'Create account' }}
+        </button>
+      </form>
+
+      @if (preview) {
+        <button type="button" class="btn btn-link demo-btn btn-block" (click)="useDemoMode()">
+          {{ previewShortcut }}
+        </button>
+      }
+
+      <p class="auth-alt">
+        Already have an account? <a routerLink="/login">Sign in</a>
+      </p>
+    </div>
+  </section>
+</div>

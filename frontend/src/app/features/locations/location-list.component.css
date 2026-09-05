@@ -1,0 +1,15 @@
+.head-actions { display: flex; gap: var(--space-3); flex-wrap: wrap; }
+
+.strong { font-weight: 700; }
+.muted { color: var(--color-text-muted); }
+
+.actions { display: flex; gap: var(--space-3); justify-content: flex-end; }
+.actions .danger { color: var(--color-danger); }
+
+.confirm { margin-bottom: var(--space-4); border-color: var(--color-danger-border); }
+.confirm-title { font-weight: 700; margin-bottom: var(--space-1); }
+
+@media (max-width: 768px) {
+  .head-actions { width: 100%; }
+  .head-actions .btn { flex: 1; }
+}

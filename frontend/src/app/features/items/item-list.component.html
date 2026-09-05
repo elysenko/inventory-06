@@ -1,0 +1,117 @@
+<div class="page">
+  <div class="page-head">
+    <div>
+      <h1 class="page-title">Items</h1>
+      <p class="page-sub">
+        {{ filtered().length }} of {{ items().length }} items ·
+        {{ lowStockCount() }} at or below reorder point
+      </p>
+    </div>
+    <div class="head-actions">
+      <a class="btn btn-ghost" routerLink="/movements/new">Record movement</a>
+      @if (auth.isManager()) {
+        <a class="btn btn-primary" routerLink="/items/new">New item</a>
+      }
+    </div>
+  </div>
+
+  <app-error-banner [message]="error()" />
+
+  <section class="card">
+    <div class="filters">
+      <div class="field">
+        <label class="field-label" for="item-search">Search</label>
+        <input
+          id="item-search"
+          class="input"
+          type="search"
+          placeholder="SKU or name…"
+          [value]="search()"
+          (input)="onSearch($event)"
+        />
+      </div>
+      <label class="toggle">
+        <input
+          type="checkbox"
+          [checked]="lowStockOnly()"
+          (change)="onLowStockToggle($event)"
+        />
+        Low stock only
+      </label>
+    </div>
+
+    @if (loading()) {
+      <div class="card-pad">
+        <div class="skeleton-row"></div>
+        <div class="skeleton-row"></div>
+        <div class="skeleton-row"></div>
+      </div>
+    } @else if (visible().length === 0) {
+      <div class="state">
+        <p class="state-title">No items match these filters</p>
+        <p>Try a different SKU or clear the low-stock filter.</p>
+        <button type="button" class="btn btn-ghost" (click)="clearFilters()">Clear filters</button>
+      </div>
+    } @else {
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th scope="col">SKU</th>
+              <th scope="col">Name</th>
+              <th scope="col">Unit</th>
+              <th scope="col" class="num">Reorder at</th>
+              <th scope="col" class="num">On hand</th>
+              <th scope="col">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of visible(); track item.id) {
+              <tr class="row-link" (click)="openItem(item)">
+                <td class="mono">{{ item.sku }}</td>
+                <td>
+                  <span class="item-name">{{ item.name }}</span>
+                  @if (item.description) {
+                    <span class="item-desc">{{ item.description }}</span>
+                  }
+                </td>
+                <td>{{ item.unit }}</td>
+                <td class="num">{{ item.reorderAt }}</td>
+                <td class="num strong">{{ item.totalQty }}</td>
+                <td>
+                  @if (isLow(item)) {
+                    <span class="badge badge-low">Low stock</span>
+                  } @else {
+                    <span class="badge badge-ok">In stock</span>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <div class="pager">
+        <span>Page {{ currentPage() }} of {{ totalPages() }}</span>
+        <span class="pager-btns">
+          <button
+            type="button"
+            class="btn btn-ghost"
+            [disabled]="currentPage() <= 1"
+            (click)="goToPage(currentPage() - 1)"
+          >
+            Previous
+          </button>
+          <button
+            type="button"
+            class="btn btn-ghost"
+            [disabled]="currentPage() >= totalPages()"
+            (click)="goToPage(currentPage() + 1)"
+          >
+            Next
+          </button>
+        </span>
+      </div>
+    }
+  </section>
+</div>

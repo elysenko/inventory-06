@@ -1,0 +1,72 @@
+<div class="page">
+  <div class="page-head">
+    <div>
+      <h1 class="page-title">Locations</h1>
+      <p class="page-sub">
+        {{ locations().length }} warehouse zones. Stock levels and movements are
+        recorded against these.
+      </p>
+    </div>
+    <div class="head-actions">
+      <a class="btn btn-primary" routerLink="/locations/new">New location</a>
+    </div>
+  </div>
+
+  <app-error-banner [message]="error()" />
+  <app-error-banner [message]="notice()" tone="success" />
+
+  @if (pendingLocation(); as pending) {
+    <section class="card card-pad confirm">
+      <p class="confirm-title">Delete {{ pending.name }}?</p>
+      <p class="field-hint">
+        A location that still holds stock, or that appears in the movement log,
+        cannot be removed.
+      </p>
+      <div class="form-actions">
+        <button type="button" class="btn btn-danger" (click)="confirmDelete()">Yes, delete</button>
+        <button type="button" class="btn btn-ghost" (click)="cancelDelete()">Cancel</button>
+      </div>
+    </section>
+  }
+
+  <section class="card">
+    @if (loading()) {
+      <div class="card-pad">
+        <div class="skeleton-row"></div>
+        <div class="skeleton-row"></div>
+      </div>
+    } @else if (locations().length === 0) {
+      <div class="state">
+        <p class="state-title">No locations yet</p>
+        <p>Create your first zone so stock has somewhere to live.</p>
+        <a class="btn btn-primary" routerLink="/locations/new">New location</a>
+      </div>
+    } @else {
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th scope="col">Name</th>
+              <th scope="col">Zone</th>
+              <th scope="col">Created</th>
+              <th scope="col" class="num">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (location of locations(); track location.id) {
+              <tr>
+                <td class="strong">{{ location.name }}</td>
+                <td><span class="badge badge-ok">Zone {{ location.zone }}</span></td>
+                <td class="muted">{{ location.createdAt | date: 'd MMM y' }}</td>
+                <td class="num actions">
+                  <button type="button" class="btn-link" (click)="edit(location)">Edit</button>
+                  <button type="button" class="btn-link danger" (click)="requestDelete(location)">Delete</button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+</div>

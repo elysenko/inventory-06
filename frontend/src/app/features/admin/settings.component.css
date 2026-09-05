@@ -1,0 +1,7 @@
+.service { margin-bottom: var(--space-5); }
+
+.service-desc { margin: var(--space-1) 0 0; max-width: 60ch; }
+
+@media (max-width: 768px) {
+  .form-actions .btn { flex: 1; }
+}

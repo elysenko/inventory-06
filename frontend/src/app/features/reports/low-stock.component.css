@@ -1,0 +1,11 @@
+.head-actions { display: flex; gap: var(--space-3); flex-wrap: wrap; }
+
+.summary { margin-bottom: var(--space-4); }
+
+.strong { font-weight: 700; }
+.mono { font-family: var(--font-mono); font-size: var(--text-xs); }
+
+@media (max-width: 768px) {
+  .head-actions { width: 100%; }
+  .head-actions .btn { flex: 1; }
+}

@@ -1,0 +1,115 @@
+<div class="page">
+  <div class="page-head">
+    <div>
+      <h1 class="page-title">Movement log</h1>
+      <p class="page-sub">
+        Every goods-in, goods-out and transfer, newest first —
+        {{ filtered().length }} matching {{ movements().length }} total.
+      </p>
+    </div>
+    <div class="head-actions">
+      <a class="btn btn-primary" routerLink="/movements/new">Record movement</a>
+    </div>
+  </div>
+
+  <app-error-banner [message]="error()" />
+
+  <section class="card">
+    <div class="filters">
+      <div class="field">
+        <label class="field-label" for="log-item">Item</label>
+        <select id="log-item" class="select" [value]="itemId()" (change)="onItemChange($event)">
+          <option value="">All items</option>
+          @for (item of items(); track item.id) {
+            <option [value]="item.id">{{ item.sku }} — {{ item.name }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="log-type">Type</label>
+        <select id="log-type" class="select" [value]="typeFilter()" (change)="onTypeChange($event)">
+          <option value="">All types</option>
+          @for (type of types(); track type) {
+            <option [value]="type">{{ type }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="log-from">From date</label>
+        <input id="log-from" class="input" type="date" [value]="from()" (change)="onFromChange($event)" />
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="log-to">To date</label>
+        <input id="log-to" class="input" type="date" [value]="to()" (change)="onToChange($event)" />
+      </div>
+
+      @if (hasFilters()) {
+        <button type="button" class="btn btn-ghost" (click)="clearFilters()">Clear</button>
+      }
+    </div>
+
+    @if (loading()) {
+      <div class="card-pad">
+        <div class="skeleton-row"></div>
+        <div class="skeleton-row"></div>
+        <div class="skeleton-row"></div>
+      </div>
+    } @else if (visible().length === 0) {
+      <div class="state">
+        <p class="state-title">No movements match these filters</p>
+        <p>Widen the date range or clear the item filter.</p>
+        <button type="button" class="btn btn-ghost" (click)="clearFilters()">Clear filters</button>
+      </div>
+    } @else {
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th scope="col">When</th>
+              <th scope="col">Recorded by</th>
+              <th scope="col">SKU</th>
+              <th scope="col">Type</th>
+              <th scope="col" class="num">Qty</th>
+              <th scope="col">From</th>
+              <th scope="col">To</th>
+              <th scope="col">Note</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (movement of visible(); track movement.id) {
+              <tr>
+                <td class="nowrap">{{ movement.createdAt | date: 'd MMM y, HH:mm' }}</td>
+                <td class="muted">{{ movement.user.email }}</td>
+                <td>
+                  <a class="mono" [routerLink]="['/items', movement.itemId]">{{ movement.item.sku }}</a>
+                </td>
+                <td><span class="badge" [class]="badgeClass(movement.type)">{{ movement.type }}</span></td>
+                <td class="num strong">{{ movement.qty }}</td>
+                <td>{{ movement.fromLoc?.name ?? '—' }}</td>
+                <td>{{ movement.toLoc?.name ?? '—' }}</td>
+                <td class="muted">{{ movement.note ?? '—' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <div class="pager">
+        <span>
+          Page {{ currentPage() }} of {{ totalPages() }} · {{ filtered().length }} movements
+        </span>
+        <span class="pager-btns">
+          <button type="button" class="btn btn-ghost" [disabled]="currentPage() <= 1" (click)="goToPage(currentPage() - 1)">
+            Previous
+          </button>
+          <button type="button" class="btn btn-ghost" [disabled]="currentPage() >= totalPages()" (click)="goToPage(currentPage() + 1)">
+            Next
+          </button>
+        </span>
+      </div>
+    }
+  </section>
+</div>

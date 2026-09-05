@@ -1,0 +1,73 @@
+<div class="auth">
+  <section class="auth-hero">
+    <span class="hero-mark" aria-hidden="true">SR</span>
+    <h2 class="hero-title">Warehouse inventory, kept honest.</h2>
+    <ul class="hero-points">
+      <li><span aria-hidden="true">▦</span> One catalogue: SKU, unit and reorder point</li>
+      <li><span aria-hidden="true">⇄</span> Atomic goods-in, goods-out and zone transfers</li>
+      <li><span aria-hidden="true">☰</span> Every movement audited — who, what, how much, when</li>
+      <li><span aria-hidden="true">⚑</span> Low-stock report the moment a line dips</li>
+    </ul>
+  </section>
+
+  <section class="auth-panel">
+    <div class="auth-card card">
+      <h1 class="auth-title">StockRoom</h1>
+      <p class="auth-sub">Sign in to your warehouse.</p>
+
+      <app-error-banner [message]="error()" />
+
+      <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+        <div class="field">
+          <label class="field-label" for="login-email">Email address</label>
+          <input
+            id="login-email"
+            class="input"
+            [class.is-invalid]="email.touched && email.invalid"
+            type="email"
+            formControlName="email"
+            autocomplete="username"
+            inputmode="email"
+            placeholder="you@company.com"
+          />
+          @if (email.touched && email.hasError('required')) {
+            <span class="field-error">Email address is required.</span>
+          } @else if (email.touched && email.hasError('email')) {
+            <span class="field-error">That does not look like an email address.</span>
+          }
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="login-password">Password</label>
+          <input
+            id="login-password"
+            class="input"
+            [class.is-invalid]="password.touched && password.invalid"
+            type="password"
+            formControlName="password"
+            autocomplete="current-password"
+          />
+          @if (password.touched && password.hasError('required')) {
+            <span class="field-error">Password is required.</span>
+          } @else if (password.touched && password.hasError('minlength')) {
+            <span class="field-error">Passwords are at least 6 characters.</span>
+          }
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block" [disabled]="submitting()">
+          {{ submitting() ? 'Signing in…' : 'Sign in' }}
+        </button>
+      </form>
+
+      @if (preview) {
+        <button type="button" class="btn btn-link demo-btn btn-block" (click)="useDemoMode()">
+          {{ previewShortcut }}
+        </button>
+      }
+
+      <p class="auth-alt">
+        No account yet? <a routerLink="/signup">Create one</a>
+      </p>
+    </div>
+  </section>
+</div>

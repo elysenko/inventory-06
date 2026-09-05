@@ -1,0 +1,193 @@
+<div class="page">
+  @if (!item()) {
+    <section class="card">
+      <div class="state">
+        <p class="state-title">Item not found</p>
+        <p>This SKU may have been removed from the catalogue.</p>
+        <a class="btn btn-ghost" routerLink="/items">Back to items</a>
+      </div>
+    </section>
+  } @else {
+    <nav class="crumbs">
+      <a routerLink="/items">Items</a>
+      <span aria-hidden="true">/</span>
+      <span>{{ item()!.sku }}</span>
+    </nav>
+
+    <div class="page-head">
+      <div>
+        <h1 class="page-title">{{ item()!.name }}</h1>
+        <p class="page-sub">
+          <span class="mono">{{ item()!.sku }}</span> · measured in {{ item()!.unit }}
+          @if (isLow()) {
+            <span class="badge badge-low">At or below reorder point</span>
+          }
+        </p>
+      </div>
+      <div class="head-actions">
+        <a class="btn btn-primary" [routerLink]="['/movements/new']" [queryParams]="{ itemId: item()!.id }">
+          Record movement
+        </a>
+        @if (auth.isManager()) {
+          <a class="btn btn-ghost" [routerLink]="['/items', item()!.id, 'edit']">Edit</a>
+          <button type="button" class="btn btn-danger" (click)="requestDelete()">Delete</button>
+        }
+      </div>
+    </div>
+
+    <app-error-banner [message]="error()" />
+
+    @if (confirmingDelete()) {
+      <section class="card card-pad confirm">
+        <p class="confirm-title">Delete {{ item()!.sku }}?</p>
+        <p class="field-hint">
+          Items referenced by a recorded movement cannot be deleted — the audit log
+          must stay complete.
+        </p>
+        <div class="form-actions">
+          <button type="button" class="btn btn-danger" (click)="confirmDelete()">Yes, delete</button>
+          <button type="button" class="btn btn-ghost" (click)="cancelDelete()">Cancel</button>
+        </div>
+      </section>
+    }
+
+    <section class="stat-grid summary">
+      <div class="stat">
+        <p class="stat-label">On hand</p>
+        <p class="stat-value">{{ item()!.totalQty }}</p>
+      </div>
+      <div class="stat">
+        <p class="stat-label">Reorder at</p>
+        <p class="stat-value">{{ item()!.reorderAt }}</p>
+      </div>
+      <div class="stat">
+        <p class="stat-label">Unit</p>
+        <p class="stat-value">{{ item()!.unit }}</p>
+      </div>
+      <div class="stat">
+        <p class="stat-label">Locations</p>
+        <p class="stat-value">{{ breakdown().length }}</p>
+      </div>
+    </section>
+
+    @if (item()!.description) {
+      <p class="description">{{ item()!.description }}</p>
+    }
+
+    <section class="card">
+      <div class="tabs" role="tablist">
+        <button
+          type="button"
+          class="tab"
+          role="tab"
+          [class.is-active]="tab() === 'breakdown'"
+          [attr.aria-selected]="tab() === 'breakdown'"
+          (click)="selectTab('breakdown')"
+        >
+          Stock by location
+        </button>
+        @if (auth.isManager()) {
+          <button
+            type="button"
+            class="tab"
+            role="tab"
+            [class.is-active]="tab() === 'movements'"
+            [attr.aria-selected]="tab() === 'movements'"
+            (click)="selectTab('movements')"
+          >
+            Movement history
+          </button>
+        }
+      </div>
+
+      @if (tab() === 'breakdown') {
+        @if (breakdown().length === 0) {
+          <div class="state">
+            <p class="state-title">No stock recorded</p>
+            <p>Record a goods-in movement to place this item into a zone.</p>
+          </div>
+        } @else {
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th scope="col">Location</th>
+                  <th scope="col">Zone</th>
+                  <th scope="col" class="num">Quantity</th>
+                  <th scope="col"></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (level of breakdown(); track level.id) {
+                  <tr>
+                    <td class="strong">{{ level.location.name }}</td>
+                    <td>{{ level.location.zone }}</td>
+                    <td class="num strong">{{ level.qty }}</td>
+                    <td class="num">
+                      <a
+                        class="btn-link"
+                        [routerLink]="['/movements/new']"
+                        [queryParams]="{ type: 'OUT', itemId: item()!.id, fromLocId: level.locationId }"
+                      >
+                        Move out
+                      </a>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="2">Total on hand</td>
+                  <td class="num">{{ breakdownTotal() }}</td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        }
+      } @else {
+        @if (itemMovements().length === 0) {
+          <div class="state">
+            <p class="state-title">No movements yet</p>
+            <p>Nothing has been received, issued or transferred for this SKU.</p>
+          </div>
+        } @else {
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th scope="col">When</th>
+                  <th scope="col">Type</th>
+                  <th scope="col" class="num">Qty</th>
+                  <th scope="col">From</th>
+                  <th scope="col">To</th>
+                  <th scope="col">By</th>
+                  <th scope="col">Note</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (movement of itemMovements(); track movement.id) {
+                  <tr>
+                    <td>{{ movement.createdAt | date: 'd MMM y, HH:mm' }}</td>
+                    <td><span class="badge" [class]="badgeClass(movement.type)">{{ movement.type }}</span></td>
+                    <td class="num strong">{{ movement.qty }}</td>
+                    <td>{{ movement.fromLoc?.name ?? '—' }}</td>
+                    <td>{{ movement.toLoc?.name ?? '—' }}</td>
+                    <td class="muted">{{ movement.user.email }}</td>
+                    <td class="muted">{{ movement.note ?? '—' }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          <div class="pager">
+            <span>Showing all {{ itemMovements().length }} movements for this item</span>
+            <a class="btn btn-ghost" [routerLink]="['/movements']" [queryParams]="{ itemId: item()!.id }">
+              Open in full log
+            </a>
+          </div>
+        }
+      }
+    </section>
+  }
+</div>
