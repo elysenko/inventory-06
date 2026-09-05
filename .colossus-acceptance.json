@@ -1,5 +1,15 @@
 {
   "ready_testid": "app-ready",
-  "expect_text": [],
-  "reject_signatures": ["home-title\">Users<", "Loading...", "Failed to load users."]
+  "expect_text": [
+    "stockroom",
+    "warehouse inventory, kept honest.",
+    "sign in to your warehouse"
+  ],
+  "reject_signatures": [
+    "home-title\">Users<",
+    "Loading...",
+    "Failed to load users.",
+    "Welcome to Angular",
+    "Coming soon"
+  ]
 }

@@ -64,20 +64,30 @@ function resolveAppRole(contractRole) {
   return match;
 }
 
-/** Upsert the colossus_accounts row and the matching User for one platform account. */
+/**
+ * Upsert the colossus_accounts row and the matching User for one platform account.
+ *
+ * The email is stored lower-cased because LoginDto lower-cases the submitted
+ * address before the lookup: a mixed-case address in COLOSSUS_ACCOUNTS_JSON
+ * would otherwise be seeded verbatim and never match at login.
+ *
+ * `passwordHash` is set in BOTH the create and the update branch so a re-deploy
+ * re-asserts the platform-held password instead of freezing the first hash.
+ */
 async function upsertAccount(account) {
   const role = resolveAppRole(account.role);
+  const email = account.email.trim().toLowerCase();
   const passwordHash = await bcrypt.hash(account.password, BCRYPT_ROUNDS);
   const loginPath = account.login_path || DEFAULT_LOGIN_PATH;
   await prisma.colossusAccount.upsert({
-    where: { email: account.email },
+    where: { email },
     update: { role: account.role, passwordHash, loginPath },
-    create: { role: account.role, email: account.email, passwordHash, loginPath },
+    create: { role: account.role, email, passwordHash, loginPath },
   });
   await prisma.user.upsert({
-    where: { email: account.email },
+    where: { email },
     update: { role, passwordHash },
-    create: { email: account.email, name: `${role} (Colossus)`, role, passwordHash },
+    create: { email, name: `${role} (Colossus)`, role, passwordHash },
   });
   return role;
 }
